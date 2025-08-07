@@ -1,0 +1,547 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Eden Faucet – AssetChain Testnet</title>
+  <!-- Ethers UMD (no module issues) -->
+  <script src="https://cdn.jsdelivr.net/npm/ethers@6.13.2/dist/ethers.umd.min.js"></script>
+  <style>
+    :root{
+      /* === Your palette === */
+      --primary:#21A88C;      /* teal */
+      --primary-2:#9A74EB;    /* purple */
+      --bg:#222122;           /* near-black */
+      --text:#F4F1FF;         /* off-white */
+      --muted:#cfc8ea;        /* soft tint from text */
+      --danger:#ff6b6b;
+
+      --card: #2a2a2b;        /* slightly lighter than bg */
+      --border: rgba(255,255,255,.10);
+      --shadow: 0 10px 30px rgba(154,116,235,0.18);
+      --radius: 14px;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0; font:16px/1.45 Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;
+      color:var(--text);
+      background:
+        radial-gradient(1200px 700px at 85% -10%, rgba(154,116,235,.18), transparent 60%),
+        radial-gradient(800px 600px at 10% -20%, rgba(33,168,140,.22), transparent 55%),
+        var(--bg);
+    }
+
+    /* ===== Navbar ===== */
+    .nav{
+      position:sticky; top:0; z-index:20;
+      backdrop-filter:saturate(140%) blur(8px);
+      background:linear-gradient(180deg, rgba(34,33,34,.85), rgba(34,33,34,.6));
+      border-bottom:1px solid var(--border);
+    }
+    .nav-inner{
+      max-width:1100px; margin:0 auto; padding:12px 16px;
+      display:flex; align-items:center; justify-content:space-between; gap:12px;
+    }
+    .brand{display:flex; align-items:center; gap:10px; color:var(--text); text-decoration:none}
+    .brand img{height:28px; width:auto; display:block}
+    .nav-right{display:flex; align-items:center; gap:12px}
+    .nav-links{display:flex; gap:14px}
+    .nav-links a{color:var(--muted); text-decoration:none; font-size:14px}
+    .nav-links a:hover{color:var(--text)}
+    .cta,button{
+      appearance:none; border:0; background:var(--primary); color:#06231c; font-weight:700;
+      padding:10px 14px; border-radius:10px; cursor:pointer; box-shadow:var(--shadow)
+    }
+    .menu-btn{
+      display:none; background:transparent; border:1px solid var(--border); color:var(--text)
+    }
+    .mobile-menu{display:none} /* <-- always hidden by default */
+    @media (max-width:860px){
+      .nav-links{display:none}
+      .menu-btn{display:inline-block}
+      /* Only show when nav has .mobile-open AND screen is small */
+      .mobile-open .mobile-menu{
+        display:block; padding:8px 16px; border-top:1px solid var(--border)
+      }
+      .mobile-menu a{display:block; padding:10px 0; color:var(--muted); text-decoration:none}
+      .mobile-menu a:hover{color:var(--text)}
+    }
+
+    /* ===== Layout ===== */
+    .wrap{max-width:1100px; margin:0 auto; padding:22px 16px}
+    .grid{display:grid; grid-template-columns:1.2fr .8fr; gap:18px}
+    @media (max-width:1000px){ .grid{grid-template-columns:1fr} }
+    .card{
+      background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+      border:1px solid var(--border); border-radius:var(--radius); padding:20px
+    }
+    .headline{font-size:28px; margin:0 0 8px}
+    .sub{color:var(--muted); margin:0 0 18px}
+    label{display:block; color:var(--muted); font-size:13px; margin-bottom:6px}
+    input,select{
+      width:100%; padding:14px; border-radius:12px;
+      border:1px solid var(--border);
+      background:#1f1e1f; color:var(--text); outline:none
+    }
+    input:focus,select:focus{
+      border-color:var(--primary-2);
+      box-shadow:0 0 0 3px rgba(154,116,235,.20)
+    }
+    .row{display:flex; gap:10px} .row>*{flex:1}
+    .pill{
+      border:1px solid var(--border); background:linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.03));
+      padding:8px 12px; border-radius:999px; color:var(--muted); font-size:13px
+    }
+    .stat{display:flex; align-items:center; justify-content:space-between; padding:12px 0; border-bottom:1px solid var(--border)}
+    .stat:last-child{border-bottom:0}
+    .link{color:var(--primary-2); text-decoration:none}
+
+    /* ===== Table ===== */
+    table{width:100%; border-collapse:collapse; font-size:14px}
+    th,td{padding:10px; border-bottom:1px solid var(--border)}
+    th{color:var(--muted); text-align:left}
+
+    /* ===== Toast ===== */
+    .toast{
+      position:fixed; right:18px; bottom:18px; background:#1b1a1b; color:var(--text);
+      border:1px solid var(--border); padding:12px 14px; border-radius:12px;
+      max-width:360px; display:none; z-index:50
+    }
+
+    /* ===== Loader Overlay & Spinners ===== */
+    .overlay{
+      position:fixed; inset:0; background:rgba(34,33,34,.55);
+      display:none; align-items:center; justify-content:center; z-index:40;
+      backdrop-filter:blur(4px)
+    }
+    .overlay.show{display:flex}
+    .spinner, .btn-spinner{
+      width:28px; height:28px; border-radius:50%;
+      border:3px solid rgba(255,255,255,.12); border-top-color:var(--primary-2);
+      animation:spin .8s linear infinite
+    }
+    .btn-spinner{ width:16px; height:16px; border-width:2px; margin-left:8px; vertical-align:middle; display:inline-block }
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    footer{margin-top:28px; color:var(--muted); font-size:13px; display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap}
+  </style>
+</head>
+<body>
+  <!-- Navbar -->
+  <nav class="nav" id="nav">
+    <div class="nav-inner">
+      <a class="brand" href="#">
+        <img src="https://app.vest.edenfinance.org/assets/eden-finance-logo-B32Tc3Xr.svg" alt="Eden Finance Logo" />
+      </a>
+      <div class="nav-right">
+        <div class="nav-links">
+          <a href="#" id="link-home">Home</a>
+          <a href="https://scan-testnet.assetchain.org/" target="_blank" rel="noreferrer">Explorer</a>
+          <a href="https://docs.ethers.io/v6/" target="_blank" rel="noreferrer">Docs</a>
+        </div>
+        <button class="menu-btn" id="menuBtn">Menu</button>
+        <button id="connectBtn" class="cta">Connect Wallet</button>
+      </div>
+    </div>
+    <div class="mobile-menu" id="mobileMenu">
+      <a href="#" id="m-home">Home</a>
+      <a href="https://scan-testnet.assetchain.org/" target="_blank" rel="noreferrer">Explorer</a>
+      <a href="https://docs.ethers.io/v6/" target="_blank" rel="noreferrer">Docs</a>
+    </div>
+  </nav>
+
+  <!-- Page -->
+  <div class="wrap">
+    <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:16px">
+      <span id="netPill" class="pill">Not connected</span>
+    </div>
+
+    <div class="grid">
+      <section class="card">
+        <h2 class="headline">Claim test tokens</h2>
+        <p class="sub">Select a token and claim to your connected address.</p>
+
+        <div class="row">
+          <div>
+            <label for="tokenSel">Token</label>
+            <select id="tokenSel">
+              <option value="native">Native (testnet)</option>
+              <option value="0x5CDDBeBAc2260CF00654887184d6BA31096fE0a5">cNGN</option>
+              <option value="0xd5ba81e5928804759d96DA750C9470bE3E7375f3">USDC</option>
+              <option value="0x68dB7c3D77dbB0eD20DAE20CF5c8e6f215BA76FB">USDT</option>
+            </select>
+          </div>
+          <div>
+            <label>Eligibility</label>
+            <input id="eligibility" disabled value="—" />
+          </div>
+        </div>
+
+        <div class="row" style="margin-top:12px">
+          <div>
+            <label>Next eligible time</label>
+            <input id="nextTime" disabled value="—" />
+          </div>
+          <div>
+            <label>Claim window</label>
+            <input id="claimWindow" disabled value="—" />
+          </div>
+        </div>
+
+        <div style="height:16px"></div>
+        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap">
+          <button id="claimBtn">Claim <span id="claimSpin" class="btn-spinner" style="display:none"></span></button>
+          <span class="pill">Account: <span id="acct">—</span></span>
+        </div>
+      </section>
+
+      <aside class="card">
+        <h3 style="margin:0 0 8px">Account</h3>
+        <div class="stat"><span>Network</span><code id="net">—</code></div>
+        <div class="stat"><span>Native balance</span><code id="balNative">—</code></div>
+        <div class="stat"><span>Token balance</span><code id="balToken">—</code></div>
+        <div class="stat"><span>Faucet</span><code id="faucetShow">—</code></div>
+        <div class="stat"><span>Last Tx</span><code id="lastTx">—</code></div>
+      </aside>
+    </div>
+
+    <section class="card" style="margin-top:18px">
+      <h3 style="margin:0 0 8px">Your Claim History</h3>
+      <div style="overflow:auto">
+        <table id="historyTable">
+          <thead>
+            <tr><th>Time</th><th>Asset</th><th>Amount</th><th>Tx</th></tr>
+          </thead>
+          <tbody id="historyBody">
+            <tr><td colspan="4" class="muted">No claims yet.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <footer>
+      <span>Powered by Eden Finance</span>
+      <span><a class="link" target="_blank" href="https://docs.ethers.io/v6/">ethers v6</a></span>
+    </footer>
+  </div>
+
+  <!-- Loader overlay -->
+  <div class="overlay" id="overlay">
+    <div class="spinner" aria-label="Loading"></div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="toast"></div>
+
+  <script>
+    // ====== CONFIG ======
+    const CHAIN_ID_DEC = 42421;
+    const CHAIN_ID_HEX = "0xa5b5";
+    const RPC_URL = "https://enugu-rpc.assetchain.org/";
+    const EXPLORER_BASE = "https://scan-testnet.assetchain.org";
+    const FAUCET_ADDRESS = "0x39dA94D4c05E4A9cb2cCf4b982Cc226bAAb6f7c4";
+    const NATIVE_SYMBOL = "ASET"; // change if different
+    const NATIVE_DECIMALS = 18;
+
+    const ERC20_ABI = [
+      {"type":"function","name":"balanceOf","inputs":[{"name":"a","type":"address"}],"outputs":[{"type":"uint256"}],"stateMutability":"view"},
+      {"type":"function","name":"decimals","inputs":[],"outputs":[{"type":"uint8"}],"stateMutability":"view"},
+      {"type":"function","name":"symbol","inputs":[],"outputs":[{"type":"string"}],"stateMutability":"view"}
+    ];
+    const FAUCET_ABI = [
+      {"type":"function","name":"claimTokens","inputs":[{"name":"token","type":"address"}],"outputs":[],"stateMutability":"nonpayable"},
+      {"type":"function","name":"claimNative","inputs":[],"outputs":[],"stateMutability":"nonpayable"},
+      {"type":"function","name":"canClaim","inputs":[{"name":"user","type":"address"},{"name":"token","type":"address"}],"outputs":[{"type":"bool"}],"stateMutability":"view"},
+      {"type":"function","name":"canClaimNative","inputs":[{"name":"user","type":"address"}],"outputs":[{"type":"bool"}],"stateMutability":"view"},
+      {"type":"function","name":"getNextClaimTime","inputs":[{"name":"user","type":"address"},{"name":"token","type":"address"}],"outputs":[{"type":"uint256"}],"stateMutability":"view"},
+      {"type":"function","name":"getNextNativeClaimTime","inputs":[{"name":"user","type":"address"}],"outputs":[{"type":"uint256"}],"stateMutability":"view"},
+      {"type":"function","name":"getTokenConfig","inputs":[{"name":"token","type":"address"}],
+        "outputs":[{"components":[
+          {"name":"amount","type":"uint256"},
+          {"name":"cooldown","type":"uint256"},
+          {"name":"dailyLimit","type":"uint256"},
+          {"name":"enabled","type":"bool"},
+          {"name":"exists","type":"bool"}],"type":"tuple"}],
+        "stateMutability":"view"},
+      "event TokenClaimed(address indexed user,address indexed token,uint256 amount,uint256 timestamp)",
+      "event NativeClaimed(address indexed user,uint256 amount,uint256 timestamp)"
+    ];
+
+    // ====== HELPERS ======
+    const $ = (id)=>document.getElementById(id);
+    const toast = (m,kind="info")=>{
+      const t=$("toast"); t.textContent=m;
+      t.style.borderColor = kind==="error" ? "rgba(255,107,107,.35)" : "var(--border)";
+      t.style.display="block"; clearTimeout(toast._t); toast._t=setTimeout(()=>t.style.display="none",4200);
+    };
+    const showOverlay=(b)=> $("overlay").classList.toggle("show", !!b);
+    const short = (x)=> x ? x.slice(0,6)+"…"+x.slice(-4) : "—";
+    const fmtTime = (unixSec)=> unixSec ? new Date(Number(unixSec)*1000).toLocaleString() : "—";
+    const fmt = (v,d=18)=> Number(ethers.formatUnits(v??0n, d)).toLocaleString();
+
+    // Navbar mobile toggle
+    $("menuBtn").onclick = ()=> document.getElementById("nav").classList.toggle("mobile-open");
+
+    // ====== State ======
+    let provider, signer, account, contract;
+    const tokenMeta = new Map(); // address -> {symbol,decimals}
+    const HISTORY_WINDOW_BLOCKS = 120_000;
+
+    const historyKey = ()=> `eden-faucet:history:${account||"anon"}:${CHAIN_ID_DEC}`;
+    function pushHistory(item){
+      const arr = JSON.parse(localStorage.getItem(historyKey())||"[]");
+      arr.unshift(item);
+      localStorage.setItem(historyKey(), JSON.stringify(arr.slice(0,200)));
+      renderHistory(arr);
+    }
+    function loadHistory(){
+      const arr = JSON.parse(localStorage.getItem(historyKey())||"[]");
+      renderHistory(arr);
+      return arr;
+    }
+    function renderHistory(items){
+      const body = $("historyBody");
+      body.innerHTML = "";
+      if(!items.length){
+        body.innerHTML = `<tr><td colspan="4" class="muted">No claims yet.</td></tr>`;
+        return;
+      }
+      for(const it of items){
+        const tr = document.createElement("tr");
+        const tLink = it.hash ? `<a class="link" target="_blank" href="${EXPLORER_BASE}/tx/${it.hash}">${short(it.hash)}</a>` : "—";
+        tr.innerHTML = `<td>${new Date(it.time).toLocaleString()}</td><td>${it.asset}</td><td>${it.amount}</td><td>${tLink}</td>`;
+        body.appendChild(tr);
+      }
+    }
+
+    async function ensureChain() {
+      const net = await provider.getNetwork();
+      if (Number(net.chainId) === CHAIN_ID_DEC) return true;
+      try {
+        await window.ethereum.request({ method:"wallet_switchEthereumChain", params:[{ chainId:CHAIN_ID_HEX }] });
+        return true;
+      } catch(e){
+        if (e && e.code === 4902) {
+          try {
+            await window.ethereum.request({
+              method:"wallet_addEthereumChain",
+              params:[{
+                chainId:CHAIN_ID_HEX, chainName:"AssetChain Testnet",
+                rpcUrls:[RPC_URL], nativeCurrency:{ name:"AssetChain Testnet", symbol:"ASET", decimals:18 },
+                blockExplorerUrls:[EXPLORER_BASE]
+              }]
+            });
+            return true;
+          } catch(err){ console.error(err); toast("Add network was rejected.","error"); return false; }
+        } else { console.error(e); toast("Switch to AssetChain Testnet (42421).","error"); return false; }
+      }
+    }
+
+    async function getTokenMeta(addr){
+      if(addr === "native") return {symbol:"ASET", decimals:18};
+      if(tokenMeta.has(addr)) return tokenMeta.get(addr);
+      const erc = new ethers.Contract(addr, ERC20_ABI, provider);
+      const [dec, sym] = await Promise.all([
+        erc.decimals().catch(()=>18),
+        erc.symbol().catch(()=> "TOKEN")
+      ]);
+      const meta = {symbol:sym, decimals:Number(dec)};
+      tokenMeta.set(addr, meta);
+      return meta;
+    }
+
+    async function refreshBalances(){
+      try{
+        if(!signer) return;
+        const native = await provider.getBalance(account);
+        $("balNative").textContent = fmt(native, 18) + " ASET";
+
+        const sel = $("tokenSel").value;
+        if (sel === "native") { $("balToken").textContent = "—"; return; }
+        const meta = await getTokenMeta(sel);
+        const erc = new ethers.Contract(sel, ERC20_ABI, provider);
+        const bal = await erc.balanceOf(account).catch(()=>0n);
+        $("balToken").textContent = `${fmt(bal, meta.decimals)} ${meta.symbol}`;
+      }catch(err){ console.error(err); toast("Failed to load balances","error"); }
+    }
+
+    async function updateEligibilityUI(){
+      try{
+        const sel = $("tokenSel").value;
+        if (!signer) return;
+
+        if (sel === "native") {
+          const [ok, nextTs] = await Promise.all([
+            contract.canClaimNative(account),
+            contract.getNextNativeClaimTime(account)
+          ]);
+          $("eligibility").value = ok ? "Eligible now" : "On cooldown";
+          $("nextTime").value = ok ? "Now" : fmtTime(nextTs);
+          $("claimWindow").value = "Native";
+        } else {
+          const [cfg, ok, nextTs] = await Promise.all([
+            contract.getTokenConfig(sel),
+            contract.canClaim(account, sel),
+            contract.getNextClaimTime(account, sel)
+          ]);
+          $("eligibility").value = ok ? "Eligible now" : "On cooldown";
+          $("nextTime").value = ok ? "Now" : fmtTime(nextTs);
+          $("claimWindow").value = `Cooldown: ${cfg.cooldown} s • Daily limit: ${cfg.dailyLimit}`;
+        }
+      }catch(err){ console.error(err); toast("Failed to read eligibility","error"); }
+    }
+
+    async function backfillHistory(){
+      if(!provider || !contract) return;
+      const latest = await provider.getBlockNumber();
+      const from = Math.max(latest - HISTORY_WINDOW_BLOCKS, 0);
+
+      const existing = JSON.parse(localStorage.getItem(historyKey())||"[]");
+      const seen = new Set(existing.map(x=>x.hash));
+
+      const add = async (asset, amount, tokenAddr, ts, txHash)=>{
+        let symbol = "ASET", decimals = 18, label = asset;
+        if (tokenAddr){
+          const meta = await getTokenMeta(tokenAddr);
+          symbol = meta.symbol; decimals = meta.decimals;
+          label = `${symbol} (${short(tokenAddr)})`;
+        }
+        const amountFmt = `${fmt(amount, decimals)} ${symbol}`;
+        if (!seen.has(txHash)) {
+          seen.add(txHash);
+          existing.unshift({ time: Number(ts)*1000, asset: label, amount: amountFmt, hash: txHash });
+        }
+      };
+
+      try{
+        const filtNative = contract.filters.NativeClaimed(account);
+        const logsN = await contract.queryFilter(filtNative, from, latest);
+        for(const ev of logsN){
+          await add("Native", ev.args.amount, null, ev.args.timestamp, ev.transactionHash);
+        }
+      }catch(e){ /* ignore */ }
+
+      try{
+        const filtToken = contract.filters.TokenClaimed(account);
+        const logsT = await contract.queryFilter(filtToken, from, latest);
+        for(const ev of logsT){
+          await add("Token", ev.args.amount, ev.args.token, ev.args.timestamp, ev.transactionHash);
+        }
+      }catch(e){ /* ignore */ }
+
+      localStorage.setItem(historyKey(), JSON.stringify(existing.slice(0,200)));
+      renderHistory(existing);
+    }
+
+    async function claim(){
+      if (!signer) { toast("Connect wallet first","error"); return; }
+      const sel = $("tokenSel").value;
+      $("claimBtn").disabled = true; $("claimSpin").style.display = "inline-block"; showOverlay(true);
+      try{
+        let tx;
+        if (sel === "native") tx = await contract.claimNative();
+        else tx = await contract.claimTokens(sel);
+
+        $("lastTx").textContent = "Pending…";
+        const receipt = await tx.wait();
+        const hash = tx.hash || receipt.hash;
+        $("lastTx").innerHTML = `<a class="link" href="${EXPLORER_BASE}/tx/${hash}" target="_blank" rel="noreferrer">${short(hash)}</a>`;
+
+        // Decode amount for history
+        const iface = contract.interface;
+        let assetLabel, amountRaw = 0n, decimals = 18, symbol = "ASET";
+        for (const log of receipt.logs || []) {
+          try{
+            const parsed = iface.parseLog(log);
+            if (parsed?.name === "NativeClaimed") {
+              assetLabel = "Native"; amountRaw = parsed.args.amount; break;
+            }
+            if (parsed?.name === "TokenClaimed") {
+              const tokenAddr = parsed.args.token;
+              const meta = await getTokenMeta(tokenAddr);
+              assetLabel = `${meta.symbol} (${short(tokenAddr)})`;
+              amountRaw = parsed.args.amount; decimals = meta.decimals; symbol = meta.symbol;
+              break;
+            }
+          }catch(e){/* skip non-faucet logs */}
+        }
+        const amountFmt = `${fmt(amountRaw, decimals)} ${symbol}`;
+        pushHistory({ time: Date.now(), asset: assetLabel || (sel==="native"?"Native":"Token"), amount: amountFmt, hash });
+
+        toast("Claim successful!");
+
+        // Refresh after claim
+        await Promise.all([updateEligibilityUI(), refreshBalances()]);
+      }catch(err){
+        console.error(err);
+        toast(err?.shortMessage || err?.message || "Transaction failed","error");
+      }finally{
+        $("claimBtn").disabled = false; $("claimSpin").style.display = "none"; showOverlay(false);
+      }
+    }
+
+    // Connect / Disconnect
+    async function connect(request=false){
+      try{
+        if (!window.ethereum) { toast("MetaMask not detected. Install a wallet.","error"); return; }
+        provider = new ethers.BrowserProvider(window.ethereum);
+
+        // If auto-connecting, use eth_accounts (no pop-up); else request accounts.
+        const accounts = request
+          ? (await provider.send("eth_requestAccounts", []))
+          : (await provider.send("eth_accounts", []));
+
+        if (!accounts.length) {
+          if (!request) return; // silent exit on auto-connect
+          // If user clicked connect and MetaMask still returns none, try request again
+          await provider.send("eth_requestAccounts", []);
+        }
+
+        signer = await provider.getSigner();
+        account = await signer.getAddress();
+
+        const ok = await ensureChain();
+        const net = await provider.getNetwork();
+        $("net").textContent = net.name + " (" + net.chainId.toString() + ")";
+        $("netPill").textContent = ok ? "Connected" : "Wrong network";
+
+        contract = new ethers.Contract(FAUCET_ADDRESS, FAUCET_ABI, signer);
+        $("faucetShow").textContent = short(FAUCET_ADDRESS);
+        $("acct").textContent = short(account);
+
+        // Toggle to Disconnect
+        const btn = $("connectBtn");
+        btn.textContent = "Disconnect";
+        btn.onclick = disconnect;
+
+        window.ethereum.on?.("accountsChanged", ()=>location.reload());
+        window.ethereum.on?.("chainChanged", ()=>location.reload());
+
+        loadHistory();
+        await Promise.all([updateEligibilityUI(), refreshBalances()]);
+        backfillHistory().catch(e=>console.warn("Backfill failed:", e));
+      }catch(err){ console.error(err); toast(err?.message||"Connection failed","error"); }
+    }
+    function disconnect(){
+      provider = signer = contract = null;
+      const btn = $("connectBtn");
+      btn.textContent = "Connect Wallet";
+      btn.onclick = ()=>connect(true);
+      $("netPill").textContent = "Not connected";
+      $("acct").textContent = "—"; $("eligibility").value = "—"; $("nextTime").value = "—"; $("claimWindow").value = "—";
+      $("balNative").textContent = "—"; $("balToken").textContent = "—"; $("lastTx").textContent = "—";
+      renderHistory([]);
+      toast("Disconnected.");
+    }
+
+    // Bindings
+    $("connectBtn").onclick = ()=>connect(true);
+    $("claimBtn").onclick = claim;
+    $("tokenSel").onchange = async ()=>{ await updateEligibilityUI(); await refreshBalances(); };
+
+    // Auto-connect on load (silent, no pop-up)
+    window.addEventListener("load", ()=> { connect(false); });
+  </script>
+</body>
+</html>
