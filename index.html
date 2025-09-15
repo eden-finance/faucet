@@ -167,9 +167,9 @@
             <label for="tokenSel">Token</label>
             <select id="tokenSel">
               <option value="native">Native (testnet)</option>
-              <option value="0x5CDDBeBAc2260CF00654887184d6BA31096fE0a5">cNGN</option>
-              <option value="0xd5ba81e5928804759d96DA750C9470bE3E7375f3">USDC</option>
-              <option value="0x68dB7c3D77dbB0eD20DAE20CF5c8e6f215BA76FB">USDT</option>
+              <option value="0xA4040DBBa36Afa7CD86B17Df80A81cD02A3483Fa">cNGN</option>
+              {# <option value="0xd5ba81e5928804759d96DA750C9470bE3E7375f3">USDC</option> #}
+              <option value="0x37607cA3C3B1dE0513AADD51709c3caCcc7f0F77">USDT</option>
             </select>
           </div>
           <div>
@@ -240,7 +240,7 @@
     const CHAIN_ID_HEX = "0xa5b5";
     const RPC_URL = "https://enugu-rpc.assetchain.org/";
     const EXPLORER_BASE = "https://scan-testnet.assetchain.org";
-    const FAUCET_ADDRESS = "0x39dA94D4c05E4A9cb2cCf4b982Cc226bAAb6f7c4";
+    const FAUCET_ADDRESS = "0xf9a1c68Cb22BD77adb07185Ff50385F953b5F82e";
     const NATIVE_SYMBOL = "RWA"; // change if different
     const NATIVE_DECIMALS = 18;
 
@@ -339,7 +339,7 @@
     }
 
     async function getTokenMeta(addr){
-      if(addr === "native") return {symbol:"ASET", decimals:18};
+      if(addr === "native") return {symbol:"RWA", decimals:18};
       if(tokenMeta.has(addr)) return tokenMeta.get(addr);
       const erc = new ethers.Contract(addr, ERC20_ABI, provider);
       const [dec, sym] = await Promise.all([
@@ -355,7 +355,7 @@
       try{
         if(!signer) return;
         const native = await provider.getBalance(account);
-        $("balNative").textContent = fmt(native, 18) + " ASET";
+        $("balNative").textContent = fmt(native, 18) + " RWA";
 
         const sel = $("tokenSel").value;
         if (sel === "native") { $("balToken").textContent = "—"; return; }
