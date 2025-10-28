@@ -132,13 +132,14 @@
   <nav class="nav" id="nav">
     <div class="nav-inner">
       <a class="brand" href="#">
-        <img src="https://app.vest.edenfinance.org/assets/eden-finance-logo-B32Tc3Xr.svg" alt="Eden Finance Logo" />
+        <img src="https://vest.edenfinance.org/assets/eden-finance-logo-B32Tc3Xr.svg" alt="Eden Finance Logo" />
       </a>
       <div class="nav-right">
         <div class="nav-links">
           <a href="#" id="link-home">Home</a>
           <a href="https://scan-testnet.assetchain.org/" target="_blank" rel="noreferrer">Explorer</a>
-          <a href="https://docs.ethers.io/v6/" target="_blank" rel="noreferrer">Docs</a>
+           <a href="https://vest.edenfinance.org" target="_blank" rel="noreferrer">Vist App</a>
+          <a href="https://docs.vest.edenfinance.org" target="_blank" rel="noreferrer">Docs</a>
         </div>
         <button class="menu-btn" id="menuBtn">Menu</button>
         <button id="connectBtn" class="cta">Connect Wallet</button>
@@ -147,7 +148,8 @@
     <div class="mobile-menu" id="mobileMenu">
       <a href="#" id="m-home">Home</a>
       <a href="https://scan-testnet.assetchain.org/" target="_blank" rel="noreferrer">Explorer</a>
-      <a href="https://docs.ethers.io/v6/" target="_blank" rel="noreferrer">Docs</a>
+       <a href="https://vest.edenfinance.org" target="_blank" rel="noreferrer">Vist App</a>
+      <a href="https://docs.vest.edenfinance.org" target="_blank" rel="noreferrer">Docs</a>
     </div>
   </nav>
 
@@ -168,7 +170,6 @@
             <select id="tokenSel">
               <option value="native">Native (testnet)</option>
               <option value="0xA4040DBBa36Afa7CD86B17Df80A81cD02A3483Fa">cNGN</option>
-              {# <option value="0xd5ba81e5928804759d96DA750C9470bE3E7375f3">USDC</option> #}
               <option value="0x37607cA3C3B1dE0513AADD51709c3caCcc7f0F77">USDT</option>
             </select>
           </div>
@@ -328,7 +329,7 @@
               method:"wallet_addEthereumChain",
               params:[{
                 chainId:CHAIN_ID_HEX, chainName:"AssetChain Testnet",
-                rpcUrls:[RPC_URL], nativeCurrency:{ name:"AssetChain Testnet", symbol:"ASET", decimals:18 },
+                rpcUrls:[RPC_URL], nativeCurrency:{ name:"AssetChain Testnet", symbol:"RWA", decimals:18 },
                 blockExplorerUrls:[EXPLORER_BASE]
               }]
             });
@@ -401,7 +402,7 @@
       const seen = new Set(existing.map(x=>x.hash));
 
       const add = async (asset, amount, tokenAddr, ts, txHash)=>{
-        let symbol = "ASET", decimals = 18, label = asset;
+        let symbol = "RWA", decimals = 18, label = asset;
         if (tokenAddr){
           const meta = await getTokenMeta(tokenAddr);
           symbol = meta.symbol; decimals = meta.decimals;
@@ -450,7 +451,7 @@
 
         // Decode amount for history
         const iface = contract.interface;
-        let assetLabel, amountRaw = 0n, decimals = 18, symbol = "ASET";
+        let assetLabel, amountRaw = 0n, decimals = 18, symbol = "RWA";
         for (const log of receipt.logs || []) {
           try{
             const parsed = iface.parseLog(log);
